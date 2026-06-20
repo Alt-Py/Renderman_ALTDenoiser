@@ -7,6 +7,7 @@ import re
 import subprocess
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 
 from .job import DenoiseJob
 from . import config as _config
@@ -257,6 +258,56 @@ def _run_frames_parallel(
     return max(codes) if codes else 0
 
 
+def _run_crossframe_chunked(exe: str, job: DenoiseJob, on_progress=None,
+                            on_log=None, canceller=None, skip_existing: bool = True) -> int:
+    """Cross-frame denoise in fixed-size chunks: one fresh denoise_batch per chunk,
+    each handed only its window's input EXRs, so peak RAM is bounded by one chunk."""
+    if job.frames:
+        frames = parse_frame_range(job.frames)
+    else:
+        frames = frames_from_glob(job.inputs[0] if job.inputs else "")
+    chunks = plan_chunks(frames, job.chunk_size)
+    total = len(chunks)
+    pruned = os.path.join(job.output_dir, "rmandenoise_pruned.json")
+
+    for i, (write_frames, window_frames) in enumerate(chunks):
+        if canceller is not None and canceller.cancelled:
+            return CANCELLED
+
+        if skip_existing and all(
+            _glob.glob(os.path.join(job.output_dir, f"*.{f:04d}.exr")) for f in write_frames
+        ):
+            if on_log:
+                on_log(f"skip chunk {write_frames[0]}-{write_frames[-1]} (exists)")
+            if on_progress:
+                on_progress(int((i + 1) / total * 100))
+            continue
+
+        window_files = source_files_for_frames(job.inputs[0] if job.inputs else "", window_frames)
+        sub = replace(job, inputs=window_files, frames=None, chunk_size=0)
+        cfg = _config.prune_config(_config.load_config(_config.generate_config(exe, sub)),
+                                   sub.selected_aovs)
+        _config.write_pruned(cfg, pruned)
+
+        include = f"{write_frames[0]}-{write_frames[-1]}"
+        argv = _build_base_argv(exe, pruned, sub) + ["--frame-include", include]
+        if on_log:
+            on_log(f"chunk {include}  ({len(window_files)} input frames)")
+
+        code = run(argv, on_log=on_log, canceller=canceller)
+        if canceller is not None and canceller.cancelled:
+            _delete_outputs(job.output_dir, write_frames)
+            return CANCELLED
+        if on_progress:
+            on_progress(int((i + 1) / total * 100))
+        if code != 0:
+            return code
+
+    if on_progress:
+        on_progress(100)
+    return 0
+
+
 def denoise_frames(
     exe: str,
     job: DenoiseJob,
@@ -272,6 +323,17 @@ def denoise_frames(
     - cross-frame mode is active (temporal filtering requires all frames in one pass)
     - no frame list can be determined (e.g. input is a single EXR with no frame number)
     """
+    # Chunked cross-frame: each chunk builds its own (smaller) config, so skip the
+    # top-level config generation and delegate before loading the full range.
+    if job.crossframe and job.chunk_size:
+        if job.frames:
+            _frames = parse_frame_range(job.frames)
+        else:
+            _frames = frames_from_glob(job.inputs[0] if job.inputs else "")
+        if _frames and len(_frames) > job.chunk_size:
+            return _run_crossframe_chunked(exe, job, on_progress, on_log,
+                                           canceller, skip_existing)
+
     cfg_path = _config.generate_config(exe, job)
     cfg = _config.load_config(cfg_path)
     cfg = _config.prune_config(cfg, job.selected_aovs)
