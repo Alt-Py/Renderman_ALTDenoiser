@@ -131,6 +131,7 @@ class MainWindow(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
         self.model = GuiModel()
+        self._canceller = None
         self.setWindowTitle("RenderMan Denoiser — The Protocol")
         self.setMinimumWidth(560)
         self.setStyleSheet(QSS)
@@ -225,6 +226,25 @@ class MainWindow(QtWidgets.QWidget):
         workers_row.addStretch(1)
         opts.addLayout(workers_row, 3, 1)
 
+        self.chunk_cb = QtWidgets.QCheckBox("Chunk cross-frame")
+        self.chunk_cb.setToolTip(
+            "Denoise cross-frame in fixed-size chunks (a separate process each) so RAM "
+            "is freed between chunks. Prevents out-of-memory on long ranges."
+        )
+        self.chunk_cb.setEnabled(False)
+        self.chunk_combo = QtWidgets.QComboBox()
+        self.chunk_combo.addItems(["10", "20", "30", "40", "50"])
+        self.chunk_combo.setCurrentText("20")
+        self.chunk_combo.setEnabled(False)
+        self.chunk_cb.toggled.connect(
+            lambda on: self.chunk_combo.setEnabled(on and self.cf.isChecked())
+        )
+        chunk_row = QtWidgets.QHBoxLayout()
+        chunk_row.addWidget(self.chunk_cb)
+        chunk_row.addWidget(self.chunk_combo)
+        chunk_row.addStretch(1)
+        opts.addLayout(chunk_row, 4, 1)
+
         v.addLayout(opts)
 
         v.addWidget(_eyebrow("Output folder"))
@@ -242,7 +262,14 @@ class MainWindow(QtWidgets.QWidget):
         self.go = QtWidgets.QPushButton("DENOISE")
         self.go.setObjectName("go")
         self.go.clicked.connect(self._run)
-        v.addWidget(self.go)
+        self.stop = QtWidgets.QPushButton("STOP")
+        self.stop.setObjectName("browse")
+        self.stop.setEnabled(False)
+        self.stop.clicked.connect(self._on_stop)
+        go_row = QtWidgets.QHBoxLayout()
+        go_row.addWidget(self.go, 1)
+        go_row.addWidget(self.stop)
+        v.addLayout(go_row)
 
         self.bar = QtWidgets.QProgressBar()
         self.bar.setTextVisible(False)
@@ -279,8 +306,18 @@ class MainWindow(QtWidgets.QWidget):
     def _on_cf_toggled(self, checked: bool) -> None:
         self.flow.setEnabled(checked)
         self.workers_combo.setEnabled(not checked)
+        self.chunk_cb.setEnabled(checked)
+        self.chunk_combo.setEnabled(checked and self.chunk_cb.isChecked())
         if checked:
             self.workers_combo.setCurrentIndex(0)
+        else:
+            self.chunk_cb.setChecked(False)
+
+    def _on_stop(self):
+        if self._canceller is not None:
+            self._canceller.cancel()
+        self.stop.setEnabled(False)
+        self.sig_log.emit("Stopping…")
 
     def _open_console(self):
         self._console.show()
@@ -355,13 +392,17 @@ class MainWindow(QtWidgets.QWidget):
         self.model.frames = self.frames.text().strip() or None
         self.model.tiles = None if self.tiles.currentText() == "off" else int(self.tiles.currentText())
         self.model.jobs = int(self.workers_combo.currentText())
+        self.model.chunk_size = (int(self.chunk_combo.currentText())
+                                 if self.cf.isChecked() and self.chunk_cb.isChecked() else 0)
         ok, msg = self.model.can_run()
         if not ok:
             QtWidgets.QMessageBox.warning(self, "Cannot run", msg)
             return
         out = self.output_edit.text().strip() or self._default_output()
         job = self.model.to_job(out)
+        self._canceller = runner.Canceller()
         self.go.setEnabled(False)
+        self.stop.setEnabled(True)
         self.bar.setValue(0)
         self._console.clear()
         self._open_console()
@@ -372,7 +413,8 @@ class MainWindow(QtWidgets.QWidget):
             exe = locate.find_denoise_batch(override=job.denoise_batch)
             code = runner.denoise_frames(exe, job,
                                          on_progress=self.sig_progress.emit,
-                                         on_log=self.sig_log.emit)
+                                         on_log=self.sig_log.emit,
+                                         canceller=self._canceller)
         except Exception as exc:
             self.sig_log.emit(str(exc))
             code = 1
@@ -380,7 +422,11 @@ class MainWindow(QtWidgets.QWidget):
 
     def _on_done(self, code: int):
         self.go.setEnabled(True)
-        self.sig_log.emit("Done." if code == 0 else f"Failed (exit {code}).")
+        self.stop.setEnabled(False)
+        if code == runner.CANCELLED:
+            self.sig_log.emit("Stopped.")
+        else:
+            self.sig_log.emit("Done." if code == 0 else f"Failed (exit {code}).")
 
     def _on_error(self, msg: str):
         self.status.setText("could not read AOVs")
