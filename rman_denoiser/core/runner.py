@@ -172,6 +172,16 @@ def run(argv: list[str], on_progress=None, on_log=None, canceller=None) -> int:
             canceller.clear_proc(proc)
 
 
+def _delete_outputs(output_dir: str, frames: list[int]) -> None:
+    """Remove denoised EXRs for *frames* in *output_dir* (discard-on-stop)."""
+    for f in frames:
+        for path in _glob.glob(os.path.join(output_dir, f"*.{f:04d}.exr")):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
+
 def denoise(exe: str, job: DenoiseJob, on_progress=None, on_log=None) -> int:
     """Full orchestration: generate config → prune AOVs → run denoise_batch.
 
@@ -195,6 +205,7 @@ def _run_frames_parallel(
     on_progress,
     on_log,
     skip_existing: bool,
+    canceller=None,
 ) -> int:
     total = len(frame_list)
     frame_pct: dict[int, int] = {}
@@ -206,6 +217,8 @@ def _run_frames_parallel(
             on_progress(int(sum(frame_pct.values()) / total))
 
     def _work(frame: int) -> int:
+        if canceller is not None and canceller.cancelled:
+            return CANCELLED
         if skip_existing:
             existing = _glob.glob(os.path.join(job.output_dir, f"*.{frame:04d}.exr"))
             if existing:
@@ -227,12 +240,18 @@ def _run_frames_parallel(
             if on_log:
                 on_log(f"[{frame}] {line}")
 
-        return run(argv, on_progress=_prog, on_log=_log)
+        code = run(argv, on_progress=_prog, on_log=_log, canceller=canceller)
+        if canceller is not None and canceller.cancelled:
+            _delete_outputs(job.output_dir, [frame])
+            return CANCELLED
+        return code
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = [pool.submit(_work, f) for f in frame_list]
         codes = [f.result() for f in futures]
 
+    if canceller is not None and canceller.cancelled:
+        return CANCELLED
     if on_progress:
         on_progress(100)
     return max(codes) if codes else 0
@@ -244,6 +263,7 @@ def denoise_frames(
     on_progress=None,
     on_log=None,
     skip_existing: bool = True,
+    canceller=None,
 ) -> int:
     """Per-frame orchestration: generate config once, run denoise_batch per frame.
 
@@ -263,7 +283,8 @@ def denoise_frames(
     if job.crossframe:
         if on_log:
             on_log("Cross-frame mode: running as single batch")
-        return run(build_run_argv(exe, pruned, job), on_progress=on_progress, on_log=on_log)
+        return run(build_run_argv(exe, pruned, job),
+                   on_progress=on_progress, on_log=on_log, canceller=canceller)
 
     if job.frames:
         frames = parse_frame_range(job.frames)
@@ -277,15 +298,17 @@ def denoise_frames(
     if not frames:
         if on_log:
             on_log("No frame range found — running as single batch")
-        return run(base_argv, on_progress=on_progress, on_log=on_log)
+        return run(base_argv, on_progress=on_progress, on_log=on_log, canceller=canceller)
 
     workers = max(1, min(job.jobs or 1, len(frames)))
     if workers > 1:
         return _run_frames_parallel(exe, pruned, job, frames, workers,
-                                    on_progress, on_log, skip_existing)
+                                    on_progress, on_log, skip_existing, canceller)
 
     n = len(frames)
     for i, frame in enumerate(frames):
+        if canceller is not None and canceller.cancelled:
+            return CANCELLED
         if skip_existing:
             existing = _glob.glob(os.path.join(job.output_dir, f"*.{frame:04d}.exr"))
             if existing:
@@ -303,7 +326,10 @@ def denoise_frames(
             if on_progress:
                 on_progress(int((_off + p / 100 * _sc) * 100))
 
-        code = run(argv, on_progress=_scaled_progress, on_log=on_log)
+        code = run(argv, on_progress=_scaled_progress, on_log=on_log, canceller=canceller)
+        if canceller is not None and canceller.cancelled:
+            _delete_outputs(job.output_dir, [frame])
+            return CANCELLED
         if on_progress:
             on_progress(int((i + 1) / n * 100))
         if code != 0:
