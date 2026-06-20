@@ -15,6 +15,40 @@ from . import config as _config
 # ── regex for progress lines emitted by denoise_batch -p ──────────────────────
 _PCT = re.compile(r"^\s*(\d{1,3})%\s*$")
 
+CANCELLED = 130  # sentinel exit code for a user-cancelled run
+
+
+class Canceller:
+    """Cooperative cancellation plus handles to the live subprocess(es)."""
+
+    def __init__(self) -> None:
+        self._event = threading.Event()
+        self._procs: set = set()
+        self._lock = threading.Lock()
+
+    def set_proc(self, proc) -> None:
+        with self._lock:
+            self._procs.add(proc)
+            cancelled = self._event.is_set()
+        if cancelled and proc.poll() is None:
+            proc.terminate()
+
+    def clear_proc(self, proc) -> None:
+        with self._lock:
+            self._procs.discard(proc)
+
+    @property
+    def cancelled(self) -> bool:
+        return self._event.is_set()
+
+    def cancel(self) -> None:
+        self._event.set()
+        with self._lock:
+            procs = list(self._procs)
+        for p in procs:
+            if p.poll() is None:
+                p.terminate()
+
 
 def parse_frame_range(frames_str: str) -> list[int]:
     """Parse "1001-1003,1005" into [1001, 1002, 1003, 1005]."""
@@ -107,12 +141,14 @@ def build_run_argv(exe: str, config_path: str, job: DenoiseJob) -> list[str]:
     return argv
 
 
-def run(argv: list[str], on_progress=None, on_log=None) -> int:
+def run(argv: list[str], on_progress=None, on_log=None, canceller=None) -> int:
     """Run denoise_batch, stream stdout, call on_progress(int 0-100).
 
     Returns the process exit code.
     Lines matching ``<digits>%`` are forwarded to *on_progress*; all other
-    lines go to *on_log* (both callbacks are optional).
+    lines go to *on_log* (both callbacks are optional). If *canceller* is given,
+    the process is registered so a concurrent ``canceller.cancel()`` can
+    terminate it.
     """
     proc = subprocess.Popen(
         argv,
@@ -121,13 +157,19 @@ def run(argv: list[str], on_progress=None, on_log=None) -> int:
         text=True,
         bufsize=1,
     )
-    for line in proc.stdout:
-        m = _PCT.match(line)
-        if m and on_progress:
-            on_progress(int(m.group(1)))
-        elif on_log:
-            on_log(line.rstrip("\n"))
-    return proc.wait()
+    if canceller is not None:
+        canceller.set_proc(proc)
+    try:
+        for line in proc.stdout:
+            m = _PCT.match(line)
+            if m and on_progress:
+                on_progress(int(m.group(1)))
+            elif on_log:
+                on_log(line.rstrip("\n"))
+        return proc.wait()
+    finally:
+        if canceller is not None:
+            canceller.clear_proc(proc)
 
 
 def denoise(exe: str, job: DenoiseJob, on_progress=None, on_log=None) -> int:
