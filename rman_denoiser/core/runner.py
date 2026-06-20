@@ -54,6 +54,43 @@ def frames_from_glob(pattern: str) -> list[int]:
     return sorted(frames)
 
 
+def plan_chunks(frames: list[int], chunk_size: int,
+                overlap: int = 2) -> list[tuple[list[int], list[int]]]:
+    """Split sorted *frames* into consecutive blocks of *chunk_size*.
+
+    Returns [(write_frames, window_frames), ...]:
+      write_frames  = the block's own frames (denoised + written once),
+      window_frames = write_frames plus up to *overlap* neighbours on each side
+                      (from the sorted list, clamped to its ends) for temporal context.
+    """
+    frames = sorted(frames)
+    n = len(frames)
+    if not frames:
+        return []
+    if chunk_size <= 0:
+        return [(list(frames), list(frames))]
+    chunks: list[tuple[list[int], list[int]]] = []
+    for start in range(0, n, chunk_size):
+        end = min(start + chunk_size, n)
+        write = frames[start:end]
+        window = frames[max(0, start - overlap):min(n, end + overlap)]
+        chunks.append((write, window))
+    return chunks
+
+
+def source_files_for_frames(pattern: str, frames: list[int]) -> list[str]:
+    """Glob *pattern* on disk; return the source EXRs for *frames* (sorted,
+    missing frames skipped). Frame number = digit run immediately before ``.exr``."""
+    disk_pattern = pattern.replace("####", "[0-9][0-9][0-9][0-9]") if "####" in pattern else pattern
+    frame_re = re.compile(r"\.(\d+)\.exr$", re.IGNORECASE)
+    by_frame: dict[int, str] = {}
+    for path in _glob.glob(disk_pattern):
+        m = frame_re.search(path)
+        if m:
+            by_frame[int(m.group(1))] = path
+    return [by_frame[f] for f in sorted(frames) if f in by_frame]
+
+
 def _build_base_argv(exe: str, config_path: str, job: DenoiseJob) -> list[str]:
     """Argv for denoise_batch without a --frame-include override."""
     argv = [exe, "-j", config_path, "-p"]
