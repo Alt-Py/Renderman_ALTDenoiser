@@ -1,0 +1,233 @@
+"""Build and execute the denoise_batch run command."""
+from __future__ import annotations
+import glob as _glob
+import json
+import os
+import re
+import subprocess
+import threading
+from concurrent.futures import ThreadPoolExecutor
+
+from .job import DenoiseJob
+from . import config as _config
+
+
+# ── regex for progress lines emitted by denoise_batch -p ──────────────────────
+_PCT = re.compile(r"^\s*(\d{1,3})%\s*$")
+
+
+def parse_frame_range(frames_str: str) -> list[int]:
+    """Parse "1001-1003,1005" into [1001, 1002, 1003, 1005]."""
+    try:
+        result: set[int] = set()
+        for part in frames_str.split(","):
+            part = part.strip()
+            if "-" in part:
+                start, end = part.split("-", 1)
+                result.update(range(int(start), int(end) + 1))
+            else:
+                result.add(int(part))
+        return sorted(result)
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"Bad frame spec {frames_str!r}: {exc}") from exc
+
+
+def frames_from_glob(pattern: str) -> list[int]:
+    """Glob *pattern* on disk and return sorted frame numbers.
+
+    Handles ``name.####.exr`` (RenderMan 4-digit frame pattern) and ``dir/*.exr``
+    (expanded directory). Frame number = digit run immediately before ``.exr``.
+    Returns [] when nothing matches or no filename has a frame number.
+    """
+    if "####" in pattern:
+        disk_pattern = pattern.replace("####", "[0-9][0-9][0-9][0-9]")
+    else:
+        disk_pattern = pattern
+    matches = _glob.glob(disk_pattern)
+    frames: list[int] = []
+    _frame_re = re.compile(r"\.(\d+)\.exr$", re.IGNORECASE)
+
+    for path in matches:
+        m = _frame_re.search(path)
+        if m:
+            frames.append(int(m.group(1)))
+    return sorted(frames)
+
+
+def _build_base_argv(exe: str, config_path: str, job: DenoiseJob) -> list[str]:
+    """Argv for denoise_batch without a --frame-include override."""
+    argv = [exe, "-j", config_path, "-p"]
+    if job.tiles:
+        argv += ["--tiles", str(job.tiles), str(job.tiles)]
+    return argv
+
+
+def build_run_argv(exe: str, config_path: str, job: DenoiseJob) -> list[str]:
+    """Return the argv list to invoke denoise_batch from a JSON config."""
+    argv = _build_base_argv(exe, config_path, job)
+    if job.frames:
+        argv += ["--frame-include", job.frames]
+    return argv
+
+
+def run(argv: list[str], on_progress=None, on_log=None) -> int:
+    """Run denoise_batch, stream stdout, call on_progress(int 0-100).
+
+    Returns the process exit code.
+    Lines matching ``<digits>%`` are forwarded to *on_progress*; all other
+    lines go to *on_log* (both callbacks are optional).
+    """
+    proc = subprocess.Popen(
+        argv,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    for line in proc.stdout:
+        m = _PCT.match(line)
+        if m and on_progress:
+            on_progress(int(m.group(1)))
+        elif on_log:
+            on_log(line.rstrip("\n"))
+    return proc.wait()
+
+
+def denoise(exe: str, job: DenoiseJob, on_progress=None, on_log=None) -> int:
+    """Full orchestration: generate config → prune AOVs → run denoise_batch.
+
+    Returns the process exit code.
+    """
+    cfg_path = _config.generate_config(exe, job)
+    cfg = _config.load_config(cfg_path)
+    cfg = _config.prune_config(cfg, job.selected_aovs)
+    pruned = os.path.join(job.output_dir, "rmandenoise_pruned.json")
+    _config.write_pruned(cfg, pruned)
+    argv = build_run_argv(exe, pruned, job)
+    return run(argv, on_progress=on_progress, on_log=on_log)
+
+
+def _run_frames_parallel(
+    exe: str,
+    pruned: str,
+    job: DenoiseJob,
+    frame_list: list[int],
+    workers: int,
+    on_progress,
+    on_log,
+    skip_existing: bool,
+) -> int:
+    total = len(frame_list)
+    frame_pct: dict[int, int] = {}
+    lock = threading.Lock()
+    base_argv = _build_base_argv(exe, pruned, job)
+
+    def _emit():
+        if on_progress:
+            on_progress(int(sum(frame_pct.values()) / total))
+
+    def _work(frame: int) -> int:
+        if skip_existing:
+            existing = _glob.glob(os.path.join(job.output_dir, f"*.{frame:04d}.exr"))
+            if existing:
+                if on_log:
+                    on_log(f"skip frame {frame} (exists)")
+                with lock:
+                    frame_pct[frame] = 100
+                    _emit()
+                return 0
+
+        argv = base_argv + ["--frame-include", str(frame)]
+
+        def _prog(p: int):
+            with lock:
+                frame_pct[frame] = p
+                _emit()
+
+        def _log(line: str):
+            if on_log:
+                on_log(f"[{frame}] {line}")
+
+        return run(argv, on_progress=_prog, on_log=_log)
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [pool.submit(_work, f) for f in frame_list]
+        codes = [f.result() for f in futures]
+
+    if on_progress:
+        on_progress(100)
+    return max(codes) if codes else 0
+
+
+def denoise_frames(
+    exe: str,
+    job: DenoiseJob,
+    on_progress=None,
+    on_log=None,
+    skip_existing: bool = True,
+) -> int:
+    """Per-frame orchestration: generate config once, run denoise_batch per frame.
+
+    Each denoised EXR is written to disk as soon as its frame finishes.
+    Falls back to a single denoise_batch call when:
+    - cross-frame mode is active (temporal filtering requires all frames in one pass)
+    - no frame list can be determined (e.g. input is a single EXR with no frame number)
+    """
+    cfg_path = _config.generate_config(exe, job)
+    cfg = _config.load_config(cfg_path)
+    cfg = _config.prune_config(cfg, job.selected_aovs)
+    pruned = os.path.join(job.output_dir, "rmandenoise_pruned.json")
+    _config.write_pruned(cfg, pruned)
+
+    # Cross-frame denoising processes all frames in one temporal pass — splitting
+    # into per-frame calls breaks the temporal filtering and produces patch artifacts.
+    if job.crossframe:
+        if on_log:
+            on_log("Cross-frame mode: running as single batch")
+        return run(build_run_argv(exe, pruned, job), on_progress=on_progress, on_log=on_log)
+
+    if job.frames:
+        frames = parse_frame_range(job.frames)
+    else:
+        pattern = job.inputs[0] if job.inputs else ""
+        frames = frames_from_glob(pattern)
+
+    # Base argv without --frame-include so we can append per-frame
+    base_argv = _build_base_argv(exe, pruned, job)
+
+    if not frames:
+        if on_log:
+            on_log("No frame range found — running as single batch")
+        return run(base_argv, on_progress=on_progress, on_log=on_log)
+
+    workers = max(1, min(job.jobs or 1, len(frames)))
+    if workers > 1:
+        return _run_frames_parallel(exe, pruned, job, frames, workers,
+                                    on_progress, on_log, skip_existing)
+
+    n = len(frames)
+    for i, frame in enumerate(frames):
+        if skip_existing:
+            existing = _glob.glob(os.path.join(job.output_dir, f"*.{frame:04d}.exr"))
+            if existing:
+                if on_log:
+                    on_log(f"skip frame {frame} (exists)")
+                if on_progress:
+                    on_progress(int((i + 1) / n * 100))
+                continue
+
+        argv = base_argv + ["--frame-include", str(frame)]
+        scale = 1 / n
+        offset = i / n
+
+        def _scaled_progress(p, _off=offset, _sc=scale):
+            if on_progress:
+                on_progress(int((_off + p / 100 * _sc) * 100))
+
+        code = run(argv, on_progress=_scaled_progress, on_log=on_log)
+        if on_progress:
+            on_progress(int((i + 1) / n * 100))
+        if code != 0:
+            return code
+
+    return 0

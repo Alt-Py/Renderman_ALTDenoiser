@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+denoised/
+*.exr
+build/
+dist/
+*.egg-info/
+
+# local-only — deliberately kept out of the published repo
+/tests/
+/docs/
+/CLAUDE.md
+/pyproject.toml

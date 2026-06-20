@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<shelfDocument>
+
+  <toolshelf name="altprotocol" label="ALT Protocol">
+    <memberTool name="rman_denoise"/>
+  </toolshelf>
+
+  <tool name="rman_denoise" label="RMDenoise" icon="SOP_blast">
+    <script scriptType="python"><![CDATA[
+import os, sys
+import hou
+
+# Locate the repo root without hardcoding a path: the package pointer puts the
+# ALTProtocol folder on Houdini's path, and the repo root is its parent. Falls
+# back to the default install location if (for any reason) it isn't found.
+_root = None
+for _p in hou.houdiniPath():
+    _np = os.path.normpath(_p)
+    if os.path.basename(_np).lower() == "altprotocol":
+        _root = os.path.dirname(_np)
+        break
+if not _root:
+    _root = r"D:/SCRIPT/Renderman"
+if _root not in sys.path:
+    sys.path.insert(0, _root)
+
+from rman_denoiser.gui import MainWindow
+
+existing = getattr(hou.session, '_denoiser_win', None)
+if existing and not existing.isHidden():
+    existing.raise_()
+    existing.activateWindow()
+else:
+    win = MainWindow()
+    win.show()
+    hou.session._denoiser_win = win
+]]></script>
+    <keywordList>
+      <keyword>renderman</keyword>
+      <keyword>denoise</keyword>
+    </keywordList>
+  </tool>
+
+</shelfDocument>

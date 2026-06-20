@@ -1,0 +1,7 @@
+{
+    "enable": true,
+    "name": "ALTProtocol",
+    "env": [
+        {"HOUDINI_PATH": {"value": "$HOUDINI_PACKAGE_PATH", "method": "prepend"}}
+    ]
+}
