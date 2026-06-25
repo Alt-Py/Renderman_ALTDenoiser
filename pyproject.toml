@@ -1,0 +1,12 @@
+[project]
+name = "rman_denoiser"
+version = "0.1.0"
+description = "Wrapper around RenderMan 27.2 denoise_batch with AOV selection and RAM controls"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.setuptools.packages.find]
+include = ["rman_denoiser*"]

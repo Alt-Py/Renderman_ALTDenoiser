@@ -1,0 +1,209 @@
+{
+    "settings": {
+        "albedo": {
+            "filename": "render/beauty.####.exr",
+            "layer": "albedo"
+        },
+        "albedo_variance": {
+            "filename": "render/beauty.####.exr",
+            "layer": "albedo_mse"
+        },
+        "normal": {
+            "filename": "render/beauty.####.exr",
+            "layer": "normal"
+        },
+        "normal_variance": {
+            "filename": "render/beauty.####.exr",
+            "layer": "normal_mse"
+        },
+        "sample_count": {
+            "filename": "render/beauty.####.exr",
+            "layer": "sampleCount"
+        },
+        "frame-include": "1",
+        "parameters": "${RMANTREE}/lib/denoise/20973-renderman.param",
+        "topology": "${RMANTREE}/lib/denoise/full_w1_5s_sym_gen2.topo",
+        "asymmetry": 0.0,
+        "tiles": [
+            1,
+            1
+        ]
+    },
+    "passes": [
+        {
+            "name": "diffuse",
+            "input": {
+                "filename": "render/beauty.####.exr",
+                "layer": "diffuse"
+            },
+            "input_variance": {
+                "filename": "render/beauty.####.exr",
+                "layer": "diffuse_mse"
+            },
+            "outputs": [
+                {
+                    "read": {
+                        "filename": "render/beauty.####.exr",
+                        "layer": "diffuse"
+                    },
+                    "write": {
+                        "filename": "denoised/beauty.####.exr",
+                        "layer": "Ci"
+                    }
+                },
+                {
+                    "read": {
+                        "filename": "render/beauty.####.exr",
+                        "layer": "diffuse"
+                    },
+                    "write": {
+                        "filename": "denoised/beauty.####.exr",
+                        "layer": "diffuse"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "specular",
+            "input": {
+                "filename": "render/beauty.####.exr",
+                "layer": "specular"
+            },
+            "input_variance": {
+                "filename": "render/beauty.####.exr",
+                "layer": "specular_mse"
+            },
+            "outputs": [
+                {
+                    "read": {
+                        "filename": "render/beauty.####.exr",
+                        "layer": "specular"
+                    },
+                    "write": {
+                        "filename": "denoised/beauty.####.exr",
+                        "layer": "Ci"
+                    }
+                },
+                {
+                    "read": {
+                        "filename": "render/beauty.####.exr",
+                        "layer": "specular"
+                    },
+                    "write": {
+                        "filename": "denoised/beauty.####.exr",
+                        "layer": "specular"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "alpha",
+            "input": {
+                "filename": "render/beauty.####.exr",
+                "layer": "a"
+            },
+            "input_variance": {
+                "filename": "render/beauty.####.exr",
+                "layer": "mse"
+            },
+            "outputs": [
+                {
+                    "read": {
+                        "filename": "render/beauty.####.exr",
+                        "layer": "a"
+                    },
+                    "write": {
+                        "filename": "denoised/beauty.####.exr",
+                        "layer": "a"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "albedo",
+            "input": {
+                "filename": "render/beauty.####.exr",
+                "layer": "albedo"
+            },
+            "input_variance": {
+                "filename": "render/beauty.####.exr",
+                "layer": "albedo_mse"
+            },
+            "outputs": [
+                {
+                    "read": {
+                        "filename": "render/beauty.####.exr",
+                        "layer": "albedo"
+                    },
+                    "write": {
+                        "filename": "denoised/beauty.####.exr",
+                        "layer": "albedo"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "color",
+            "input": {
+                "filename": "render/beauty.####.exr",
+                "layer": "Ci"
+            },
+            "input_variance": {
+                "filename": "render/beauty.####.exr",
+                "layer": "mse"
+            },
+            "outputs": [
+                {
+                    "read": {
+                        "filename": "render/beauty.####.exr",
+                        "layer": "Ci_variance"
+                    },
+                    "write": {
+                        "filename": "denoised/beauty.####.exr",
+                        "layer": "Ci_variance"
+                    }
+                },
+                {
+                    "read": {
+                        "filename": "render/beauty.####.exr",
+                        "layer": "L_custom"
+                    },
+                    "write": {
+                        "filename": "denoised/beauty.####.exr",
+                        "layer": "L_custom"
+                    }
+                },
+                {
+                    "read": {
+                        "filename": "render/beauty.####.exr",
+                        "layer": "L_night"
+                    },
+                    "write": {
+                        "filename": "denoised/beauty.####.exr",
+                        "layer": "L_night"
+                    }
+                },
+                {
+                    "read": {
+                        "filename": "render/beauty.####.exr",
+                        "layer": "L_sun"
+                    },
+                    "write": {
+                        "filename": "denoised/beauty.####.exr",
+                        "layer": "L_sun"
+                    }
+                },
+                {
+                    "read": {
+                        "filename": "render/beauty.####.exr",
+                        "layer": "L_tomocco"
+                    },
+                    "write": {
+                        "filename": "denoised/beauty.####.exr",
+                        "layer": "L_tomocco"
+                    }
+                }
+            ]
+        }
+    ]
+}
