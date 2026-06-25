@@ -54,3 +54,7 @@ installer does it for you.**
 - **Group AOVs by category** in the UI (beauty / diffuse / specular / light-groups) — currently a flat list.
 - **Houdini panel**: the shelf tool ships today via the `ALTProtocol` package; a dockable Python panel that
   reads the current ROP output is the next step.
+
+## Credits
+
+Built by Thomas Spony. Developed with assistance from Claude (Anthropic).
