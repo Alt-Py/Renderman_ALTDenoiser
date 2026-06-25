@@ -1,0 +1,209 @@
+{
+    "settings": {
+        "albedo": {
+            "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+            "layer": "albedo"
+        },
+        "albedo_variance": {
+            "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+            "layer": "albedo_mse"
+        },
+        "normal": {
+            "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+            "layer": "normal"
+        },
+        "normal_variance": {
+            "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+            "layer": "normal_mse"
+        },
+        "sample_count": {
+            "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+            "layer": "sampleCount"
+        },
+        "frame-include": "1",
+        "parameters": "${RMANTREE}/lib/denoise/20973-renderman.param",
+        "topology": "${RMANTREE}/lib/denoise/full_w1_5s_sym_gen2.topo",
+        "asymmetry": 0.0,
+        "tiles": [
+            1,
+            1
+        ]
+    },
+    "passes": [
+        {
+            "name": "diffuse",
+            "input": {
+                "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                "layer": "diffuse"
+            },
+            "input_variance": {
+                "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                "layer": "diffuse_mse"
+            },
+            "outputs": [
+                {
+                    "read": {
+                        "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "diffuse"
+                    },
+                    "write": {
+                        "filename": "C:/Users/ALTE/AppData/Local/Temp/dnz/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "Ci"
+                    }
+                },
+                {
+                    "read": {
+                        "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "diffuse"
+                    },
+                    "write": {
+                        "filename": "C:/Users/ALTE/AppData/Local/Temp/dnz/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "diffuse"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "specular",
+            "input": {
+                "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                "layer": "specular"
+            },
+            "input_variance": {
+                "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                "layer": "specular_mse"
+            },
+            "outputs": [
+                {
+                    "read": {
+                        "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "specular"
+                    },
+                    "write": {
+                        "filename": "C:/Users/ALTE/AppData/Local/Temp/dnz/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "Ci"
+                    }
+                },
+                {
+                    "read": {
+                        "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "specular"
+                    },
+                    "write": {
+                        "filename": "C:/Users/ALTE/AppData/Local/Temp/dnz/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "specular"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "alpha",
+            "input": {
+                "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                "layer": "a"
+            },
+            "input_variance": {
+                "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                "layer": "mse"
+            },
+            "outputs": [
+                {
+                    "read": {
+                        "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "a"
+                    },
+                    "write": {
+                        "filename": "C:/Users/ALTE/AppData/Local/Temp/dnz/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "a"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "albedo",
+            "input": {
+                "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                "layer": "albedo"
+            },
+            "input_variance": {
+                "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                "layer": "albedo_mse"
+            },
+            "outputs": [
+                {
+                    "read": {
+                        "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "albedo"
+                    },
+                    "write": {
+                        "filename": "C:/Users/ALTE/AppData/Local/Temp/dnz/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "albedo"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "color",
+            "input": {
+                "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                "layer": "Ci"
+            },
+            "input_variance": {
+                "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                "layer": "mse"
+            },
+            "outputs": [
+                {
+                    "read": {
+                        "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "Ci_variance"
+                    },
+                    "write": {
+                        "filename": "C:/Users/ALTE/AppData/Local/Temp/dnz/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "Ci_variance"
+                    }
+                },
+                {
+                    "read": {
+                        "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "L_custom"
+                    },
+                    "write": {
+                        "filename": "C:/Users/ALTE/AppData/Local/Temp/dnz/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "L_custom"
+                    }
+                },
+                {
+                    "read": {
+                        "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "L_night"
+                    },
+                    "write": {
+                        "filename": "C:/Users/ALTE/AppData/Local/Temp/dnz/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "L_night"
+                    }
+                },
+                {
+                    "read": {
+                        "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "L_sun"
+                    },
+                    "write": {
+                        "filename": "C:/Users/ALTE/AppData/Local/Temp/dnz/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "L_sun"
+                    }
+                },
+                {
+                    "read": {
+                        "filename": "D:/PROJECT/HLDV/03_Production/Assets/Character/HLDV_char_helldiver/Renders/3dRender/lookdev_QC/v0003/beauty/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "L_tomocco"
+                    },
+                    "write": {
+                        "filename": "C:/Users/ALTE/AppData/Local/Temp/dnz/HLDV_char_helldiver_lookdev_QC_v0003_beauty.####.exr",
+                        "layer": "L_tomocco"
+                    }
+                }
+            ]
+        }
+    ]
+}
