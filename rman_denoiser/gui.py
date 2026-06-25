@@ -15,7 +15,7 @@ except ImportError:
     from PySide6 import QtWidgets, QtCore, QtGui, QtSvg
     _EXEC = "exec"
 
-from .core import locate, config, runner
+from .core import locate, config, runner, categorize
 from .core.job import DenoiseJob, expand_input
 from .gui_model import GuiModel
 
@@ -50,6 +50,10 @@ QWidget {{ background:{C['bg']}; color:{C['ink']}; font-family:'Satoshi','Segoe 
 QLineEdit, QComboBox, QListWidget {{ background:{C['deep']}; border:1px solid {C['hair']}; border-radius:8px; padding:7px 9px; }}
 QListWidget::item {{ padding:5px 2px; }}
 QListWidget::item:selected {{ background:transparent; color:{C['ink']}; }}
+QTreeWidget {{ background:{C['deep']}; border:1px solid {C['hair']}; border-radius:8px; padding:4px; }}
+QTreeWidget::item {{ padding:4px 2px; }}
+QTreeWidget::item:selected {{ background:transparent; color:{C['ink']}; }}
+QTreeWidget::branch {{ background:transparent; }}
 QPushButton#browse {{ background:{C['bg2']}; border:1px solid {C['hairS']}; border-radius:8px; padding:8px 14px; color:{C['ink']}; }}
 QPushButton#browse:hover {{ background:#171c28; }}
 QPushButton#go {{ background:{C['red']}; color:#FFFFFF; border:none; border-radius:10px; padding:14px; font-weight:700; letter-spacing:3px; }}
@@ -178,11 +182,14 @@ class MainWindow(QtWidgets.QWidget):
         v.addWidget(self.status)
 
         v.addWidget(_eyebrow("AOVs to denoise"))
-        self.aov_list = QtWidgets.QListWidget()
-        self.aov_list.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
-        self.aov_list.setMaximumHeight(170)
-        self.aov_list.setToolTip("Select which AOVs to denoise. Fewer AOVs = faster and less RAM")
-        v.addWidget(self.aov_list)
+        self.aov_tree = QtWidgets.QTreeWidget()
+        self.aov_tree.setHeaderHidden(True)
+        self.aov_tree.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
+        self.aov_tree.setMaximumHeight(240)
+        self.aov_tree.setToolTip("Select which AOVs to denoise, grouped by type. "
+                                 "Tick a group header to select the whole group. "
+                                 "Fewer AOVs = faster and less RAM")
+        v.addWidget(self.aov_tree)
 
         v.addWidget(_eyebrow("Mode & performance"))
         opts = QtWidgets.QGridLayout()
@@ -332,20 +339,31 @@ class MainWindow(QtWidgets.QWidget):
 
     def _populate_aovs(self, aovs: list):
         self.model.set_available_aovs(aovs)
-        self.aov_list.clear()
-        for a in aovs:
-            item = QtWidgets.QListWidgetItem(a)
-            item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
-            item.setCheckState(QtCore.Qt.Checked if a == "Ci" else QtCore.Qt.Unchecked)
-            self.aov_list.addItem(item)
+        self.aov_tree.clear()
+        for group, names in categorize.group_aovs(aovs):
+            parent = QtWidgets.QTreeWidgetItem(self.aov_tree, [f"{group} ({len(names)})"])
+            parent.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled
+                            | QtCore.Qt.ItemIsAutoTristate)
+            parent.setCheckState(0, QtCore.Qt.Unchecked)
+            for a in names:
+                child = QtWidgets.QTreeWidgetItem(parent, [a])
+                child.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
+                child.setCheckState(0, QtCore.Qt.Checked if a == "Ci" else QtCore.Qt.Unchecked)
+            parent.setExpanded(True)
         self.status.setText(f"{len(aovs)} AOVs detected")
         if not self.output_edit.text().strip():
             self.output_edit.setText(self._default_output())
 
     def _selected(self) -> list:
-        return [self.aov_list.item(i).text()
-                for i in range(self.aov_list.count())
-                if self.aov_list.item(i).checkState() == QtCore.Qt.Checked]
+        out = []
+        root = self.aov_tree.invisibleRootItem()
+        for i in range(root.childCount()):
+            parent = root.child(i)
+            for j in range(parent.childCount()):
+                child = parent.child(j)
+                if child.checkState(0) == QtCore.Qt.Checked:
+                    out.append(child.text(0))
+        return out
 
     def _run(self):
         self.model.set_input(self.input_edit.text().strip())
