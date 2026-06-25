@@ -7,8 +7,6 @@ build/
 dist/
 *.egg-info/
 
-# local-only — deliberately kept out of the published repo
-/tests/
+# local-only — internal, not published
 /docs/
 /CLAUDE.md
-/pyproject.toml
