@@ -58,3 +58,10 @@ def test_to_job_expands_directory_input(tmp_path):
     job = m.to_job(str(tmp_path / "denoised"))
     assert job.inputs == [str(tmp_path / "*.exr")]
     assert job.selected_aovs == ["L_sun"]
+
+
+def test_to_job_passes_chunk_size():
+    m = GuiModel(input_path="/tmp/foo")
+    m.chunk_size = 20
+    job = m.to_job("/tmp/out")
+    assert job.chunk_size == 20

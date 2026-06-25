@@ -27,3 +27,4 @@ class DenoiseJob:
     asymmetry: float = 0.0
     denoise_batch: str | None = None
     jobs: int = 1
+    chunk_size: int = 0
