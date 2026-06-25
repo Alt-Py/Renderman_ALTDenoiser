@@ -3,29 +3,30 @@
 A Python wrapper around RenderMan 27.2's `denoise_batch`. It discovers the AOVs in a render
 (from a `denoise_batch -dr` dry-run config), lets you **select exactly which AOVs to denoise**,
 and runs single- or cross-frame denoising with optical flow and tiled (low-RAM) processing.
-The win over the stock `denoise` GUI: it only processes the AOVs you pick (pruned config) — faster
-and lighter — instead of denoising everything.
+
+I did this rewrap to solve low computer memory issues on denoise by allowing split framing on cross denoise, also it only processes the AOVs you pick (pruned config). Finally if you have a lot of ram I added a parallel processing option to make the denosie faster
 
 - **Runtime:** the GUI runs on Houdini 21's bundled Python (PySide2); the CLI/core run on any Python 3.11+.
 - **RenderMan:** located via `$RMANTREE` (falls back to the default install path, or `--rman` override).
 
+![alt text](assets/gui.png)
+
 
 ## GUI
 
-Launch `RMDenoise.bat` from the repo root (runs `gui.py` via Houdini's `hython`). Pick a render, tick the
-AOVs to denoise, choose single/cross-frame + flow + tile size + worker count, hit Denoise.
+Launch `RMDenoise.bat` from the repo root. 
+Pick a render, tick the AOVs to denoise, choose single/cross-frame + flow + tile size + worker count, hit Denoise.
 
-Inside Houdini, the same window is available as a shelf tool via the bundled `ALTProtocol` package —
-see [Install the Houdini shelf tool](#install-the-houdini-shelf-tool-altprotocol-package) below.
+Inside Houdini, the same window is available as a shelf tool via the bundled `ALTProtocol` package 
 
-![RenderMan Denoiser GUI](assets/gui.png)
+![alt text](assets/image.png)
 
 ## Install the Houdini shelf tool (ALTProtocol package)
 
-The denoiser ships as a Houdini **package** so it appears as a shelf tool inside Houdini. A package is
-just a tiny pointer file that tells Houdini where the tool lives — you never copy code into Houdini's
-install folder, and updating the repo updates the tool. **You don't write that file yourself — an
-installer does it for you.**
+The denoiser ships as a Houdini **package** so it appears as a shelf tool inside Houdini. 
+A package is just a tiny pointer file that tells Houdini where the tool lives; You never copy code into Houdini's
+install folder, and updating the repo updates the tool. 
+**You don't write that file yourself installer does it for you.**
 
 1. **Put the repo somewhere permanent.** Any location works; it just needs to contain `ALTProtocol/`,
    `rman_denoiser/`, and the `.bat` files.
@@ -51,7 +52,7 @@ installer does it for you.**
 - **Deadline integration — on the way.** A Deadline submitter that farms one frame per node is the next
   milestone. The CLI is already farm-friendly (deterministic args, streaming `--progress`, per-frame
   `--jobs`), so the submitter wraps it directly.
-- **Group AOVs by category** in the UI (beauty / diffuse / specular / light-groups) — currently a flat list.
+- [x]  **Group AOVs by category** in the UI (beauty / diffuse / specular / light-groups) — currently a flat list.
 - **Houdini panel**: the shelf tool ships today via the `ALTProtocol` package; a dockable Python panel that
   reads the current ROP output is the next step.
 
