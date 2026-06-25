@@ -299,7 +299,7 @@ class MainWindow(QtWidgets.QWidget):
         author.setStyleSheet(credit_style)
         footer.addWidget(author)
         footer.addStretch(1)
-        ver = QtWidgets.QLabel("V1.0.0 · RM 27.2")
+        ver = QtWidgets.QLabel("V1.1.0 · RM 27.2")
         ver.setStyleSheet(credit_style)
         footer.addWidget(ver)
         v.addLayout(footer)
