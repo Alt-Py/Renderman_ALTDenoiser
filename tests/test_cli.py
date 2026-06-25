@@ -46,3 +46,15 @@ def test_list_aovs_prints_discovered(capsys, monkeypatch):
     out = capsys.readouterr().out
     assert rc == 0
     assert "L_sun" in out and "diffuse" in out
+
+
+def test_cli_parses_chunk():
+    from rman_denoiser.cli import parse_args
+    job, a = parse_args(["render", "--crossframe", "--chunk", "30"])
+    assert job.chunk_size == 30
+
+
+def test_cli_chunk_defaults_zero():
+    from rman_denoiser.cli import parse_args
+    job, a = parse_args(["render"])
+    assert job.chunk_size == 0

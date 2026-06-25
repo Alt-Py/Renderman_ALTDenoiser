@@ -32,6 +32,8 @@ def parse_args(argv: list[str]):
                    help="print the denoise_batch command, do not run")
     p.add_argument("--jobs", type=int, default=1,
                    help="parallel frame workers 1-4 (default: 1). Ignored for --crossframe.")
+    p.add_argument("--chunk", type=int, default=0,
+                   help="cross-frame chunk size (frames/process; 0=off). Only used with --crossframe.")
     p.add_argument("--rman", default=None, help="override denoise_batch path")
     a = p.parse_args(argv)
 
@@ -45,7 +47,7 @@ def parse_args(argv: list[str]):
         selected_aovs=[s for s in a.aovs.split(",") if s],
         crossframe=a.crossframe, flow=a.flow, frames=a.frames,
         tiles=a.tiles, low_ram=a.low_ram, asymmetry=a.asymmetry,
-        denoise_batch=a.rman, jobs=jobs,
+        denoise_batch=a.rman, jobs=jobs, chunk_size=max(0, a.chunk),
     )
     return job, a
 

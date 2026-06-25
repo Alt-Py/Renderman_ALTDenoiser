@@ -15,6 +15,7 @@ class GuiModel:
     frames: str | None = None
     tiles: int | None = None
     jobs: int = 1
+    chunk_size: int = 0
 
     def set_input(self, path: str) -> None:
         self.input_path = path
@@ -45,4 +46,5 @@ class GuiModel:
             inputs=expand_input(self.input_path), output_dir=output_dir,
             selected_aovs=sel, crossframe=self.crossframe, flow=self.flow,
             frames=self.frames, tiles=self.tiles, jobs=self.jobs,
+            chunk_size=self.chunk_size,
         )
